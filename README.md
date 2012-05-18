@@ -1,15 +1,13 @@
 # itsy
 
-I'm an app. Or maybe I'm a library? I haven't decided yet. 
-
-The choice is up to you!
+Don't use this yet, I'm still working on it.
 
 ## Usage
 
-FIXME
+Don't use it, really.
 
 ## License
 
-Copyright © 2012 FIXME
+Copyright © 2012 Lee Hinman
 
 Distributed under the Eclipse Public License, the same as Clojure.
