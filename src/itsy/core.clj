@@ -1,7 +1,7 @@
 (ns itsy.core
   (:require [cemerick.url :refer [url]]
             [clojure.string :as s]
-            [clojure.tools.logging :refer [info debug trace]]
+            [clojure.tools.logging :refer [info debug trace warn]]
             [clj-http.client :as http]
             [slingshot.slingshot :refer [try+]])
   (:import (java.net URL)
@@ -60,7 +60,7 @@
       (enqueue-urls config urls)
       ((:handler config) url-map body))
     (catch Object _
-      (trace :blurgh!))))
+      (trace "caught exception crawling" (:url url-map) "skipping."))))
 
 
 (defn thread-status [config]
@@ -92,25 +92,25 @@
         w-tid (.getId w-thread)]
     (swap! (-> config :state :worker-canaries) assoc w-tid true)
     (swap! (-> config :state :running-workers) conj w-thread)
-    (println :starting w-thread w-tid)
+    (info "Starting thread:" w-thread w-tid)
     (.start w-thread))
-  (println "New worker count:" (count @(-> config :state :running-workers))))
+  (info "New worker count:" (count @(-> config :state :running-workers))))
 
 
 (defn stop-workers
   "Given a config object, stop all the workers for that config."
   [config]
-  (println "Strangling canaries...")
+  (info "Strangling canaries...")
   (reset! (-> config :state :worker-canaries) {})
-  (println "Waiting for workers to finish...")
+  (info "Waiting for workers to finish...")
   (map #(.join % 30000) @(-> config :state :running-workers))
   (Thread/sleep 10000)
   (if (= #{terminated} (set (vals (thread-status config))))
     (do
-      (println "All workers stopped.")
+      (info "All workers stopped.")
       (reset! (-> config :state :running-workers) []))
     (do
-      (println "Unable to stop all workers.")
+      (warn "Unable to stop all workers.")
       (reset! (-> config :state :running-workers)
               (remove #(= terminated (.getState %))
                       @(-> config :state :running-workers)))))
@@ -124,9 +124,7 @@
   (let [hl (:host-limit options)
         host-limiter (cond
                        (string? hl) (try (:host (url hl))
-                                         (catch Exception _
-                                           (trace :eh?)
-                                           hl))
+                                         (catch Exception _ hl))
                        (= true hl) (:host (url (:url options)))
                        :else hl)
         _ (trace :host-limiter host-limiter)
@@ -144,13 +142,13 @@
                       options
                       {:host-limit host-limiter})]
     (trace :config config)
-    (println "Starting workers...")
+    (info "Starting" (:workers config) "workers...")
     (http/with-connection-pool {:timeout 5
                                 :threads (:workers config)
                                 :insecure? true}
       (dotimes [_ (:workers config)]
         (start-worker config))
-      (println "Starting crawl of" (:url config))
+      (info "Starting crawl of" (:url config))
       (enqueue-url config (:url config)))
     config))
 
