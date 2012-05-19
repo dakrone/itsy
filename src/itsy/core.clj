@@ -16,10 +16,16 @@
     (apply println (str "[" (.getId (Thread/currentThread)) "]->") args)))
 
 
-(defn valid-url? [url]
+(defn valid-url? [url-str]
   (try
-    (http/parse-url url)
+    (url url-str)
     (catch Exception _ nil)))
+
+(defn- enqueue* [config url]
+  (pdbg :enqueue-url url)
+  (.put (-> config :state :url-queue)
+        {:url url :count @(-> config :state :url-count)})
+  (swap! (-> config :state :url-count) inc))
 
 
 (defn enqueue-url
@@ -30,11 +36,12 @@
              (or (neg? (:url-limit config))
                  (< @(-> config :state :url-count) (:url-limit config))))
     (when-let [url-info (valid-url? url)]
-      (pdbg :enqueue-url url)
+      (pdbg :host-limit? (:host-limit config))
       (swap! (-> config :state :seen-urls) assoc url true)
-      (.put (-> config :state :url-queue)
-            {:url url :count @(-> config :state :url-count)})
-      (swap! (-> config :state :url-count) inc))))
+      (if-let [host-limiter (:host-limit config)]
+        (when (.contains (:host url-info) host-limiter)
+          (enqueue* config url))
+        (enqueue* config url)))))
 
 
 (defn enqueue-urls [config urls]
@@ -113,7 +120,16 @@
   "Crawl a url with the given worker count and handler."
   [options]
   (pdbg :options options)
-  (let [config (merge {:workers 5
+  (let [hl (:host-limit options)
+        host-limiter (cond
+                       (string? hl) (try (:host (url hl))
+                                         (catch Exception _
+                                           (pdbg :eh?)
+                                           hl))
+                       (= true hl) (:host (url (:url options)))
+                       :else hl)
+        _ (pdbg :host-limiter host-limiter)
+        config (merge {:workers 5
                        :url-limit 100
                        :url-extractor extract-urls
                        :state {:url-queue (LinkedBlockingQueue.)
@@ -124,7 +140,8 @@
                        :http-opts {:socket-timeout 10000
                                    :conn-timeout 10000
                                    :insecure? true}}
-                      options)]
+                      options
+                      {:host-limit host-limiter})]
     (pdbg :config config)
     (println "Starting workers...")
     (http/with-connection-pool {:timeout 5
