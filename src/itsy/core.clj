@@ -24,12 +24,14 @@
   "Enqueue the url assuming the url-count is below the limit and we haven't seen
   this url before."
   [config url]
-  (when (and (< @(-> config :state :url-count) (:url-limit config))
-             (not (get @(-> config :state :seen-urls) url)))
+  (when (or (neg? (:url-limit config))
+            (and (< @(-> config :state :url-count) (:url-limit config))
+                 (not (get @(-> config :state :seen-urls) url))))
     (when-let [url-info (valid-url? url)]
       (pdbg :enqueue-url url)
       (swap! (-> config :state :seen-urls) assoc url true)
-      (.put url-queue {:url url :count @(-> config :state :url-count)})
+      (.put (-> config :state :url-queue)
+            {:url url :count @(-> config :state :url-count)})
       (swap! (-> config :state :url-count) inc))))
 
 
@@ -49,11 +51,7 @@
     (pdbg :retrieving-body-for url-map)
     (let [url (:url url-map)
           score (:count url-map)
-          body (-> (http/get url
-                             (merge {:socket-timeout 10000
-                                     :conn-timeout 10000
-                                     :insecure? true}
-                                    (:http-opts config)))
+          body (-> (http/get url (:http-opts config))
                    :body)
           _ (pdbg :extracting-urls)
           urls ((:url-extractor config) body)]
@@ -72,7 +70,8 @@
   (fn worker-fn* []
     (loop []
       (pdbg :waiting-for-url)
-      (when-let [url-map (.poll url-queue 3 TimeUnit/SECONDS)]
+      (when-let [url-map (.poll (-> config :state :url-queue)
+                                3 TimeUnit/SECONDS)]
         (pdbg :got url-map)
         (crawl-page config url-map))
       (let [tid (.getId (Thread/currentThread))]
@@ -120,7 +119,10 @@
                                :url-count (atom 0)
                                :running-workers (atom [])
                                :worker-canaries (atom {})
-                               :seen-urls (atom {})}}
+                               :seen-urls (atom {})}
+                       :http-opts {:socket-timeout 10000
+                                   :conn-timeout 10000
+                                   :insecure? true}}
                       options)]
     (pdbg :config config)
     (println "Starting workers...")
