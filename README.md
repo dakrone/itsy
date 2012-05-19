@@ -13,7 +13,8 @@ In your project.clj:
 In your project:
 
 ```clojure
-(require ['itsy.core :refer :all])
+(ns myns.foo
+  (:require [itsy.core :refer :all]))
 
 (defn my-handler [url-map page-body]
   (println (:url url-map) "has a count of" (count page-body)))
