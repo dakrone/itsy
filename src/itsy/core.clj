@@ -32,16 +32,17 @@
   "Enqueue the url assuming the url-count is below the limit and we haven't seen
   this url before."
   [config url]
-  (when (and (not (get @(-> config :state :seen-urls) url))
-             (or (neg? (:url-limit config))
-                 (< @(-> config :state :url-count) (:url-limit config))))
-    (when-let [url-info (valid-url? url)]
-      (pdbg :host-limit? (:host-limit config))
-      (swap! (-> config :state :seen-urls) assoc url true)
-      (if-let [host-limiter (:host-limit config)]
-        (when (.contains (:host url-info) host-limiter)
-          (enqueue* config url))
-        (enqueue* config url)))))
+  (if (get @(-> config :state :seen-urls) url)
+    (swap! (-> config :state :seen-urls) update-in [url] inc)
+
+    (when (or (neg? (:url-limit config))
+              (< @(-> config :state :url-count) (:url-limit config)))
+      (when-let [url-info (valid-url? url)]
+        (swap! (-> config :state :seen-urls) assoc url 1)
+        (if-let [host-limiter (:host-limit config)]
+          (when (.contains (:host url-info) host-limiter)
+            (enqueue* config url))
+          (enqueue* config url))))))
 
 
 (defn enqueue-urls [config urls]
