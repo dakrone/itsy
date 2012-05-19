@@ -104,6 +104,7 @@
   the new Thread object."
   [config]
   (let [w-thread (Thread. (worker-fn config))
+        _ (.setName w-thread (str "itsy-worker-"(.getName w-thread)))
         w-tid (.getId w-thread)]
     (swap! (-> config :state :worker-canaries) assoc w-tid true)
     (swap! (-> config :state :running-workers) conj w-thread)
@@ -126,9 +127,8 @@
       (reset! (-> config :state :running-workers) []))
     (do
       (warn "Unable to stop all workers.")
-      (reset! (-> config :state :running-workers)
-              (remove #(= terminated (.getState %))
-                      @(-> config :state :running-workers)))))
+      (swap! (-> config :state :running-workers)
+             remove #(= terminated (.getState %)))))
   @(-> config :state :running-workers))
 
 
