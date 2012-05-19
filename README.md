@@ -46,6 +46,14 @@ In your project:
 
 ;; ... crawling ensues ...
 
+(thread-status c)
+;; returns a map of thread-id to Thread.State:
+{33 #<State RUNNABLE>, 34 #<State RUNNABLE>, 35 #<State RUNNABLE>,
+ 36 #<State RUNNABLE>, 37 #<State RUNNABLE>, 38 #<State RUNNABLE>,
+ 39 #<State RUNNABLE>, 40 #<State RUNNABLE>, 41 #<State RUNNABLE>,
+ 42 #<State RUNNABLE>}
+
+
 (stop-workers c)
 ;; stop-workers will return a collection of all threads it failed to
 ;; stop (it should be able to stop all threads unless something goes
