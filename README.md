@@ -7,7 +7,7 @@ A threaded web spider, written in Clojure.
 In your project.clj:
 
 ```clojure
-[itsy "not-released-yet"]
+[itsy "0.1.0-SNAPSHOT"]
 ```
 
 In your project:
