@@ -53,8 +53,7 @@
     (pdbg :retrieving-body-for url-map)
     (let [url (:url url-map)
           score (:count url-map)
-          body (-> (http/get url (:http-opts config))
-                   :body)
+          body (:body (http/get url (:http-opts config)))
           _ (pdbg :extracting-urls)
           urls ((:url-extractor config) body)]
       (enqueue-urls config urls)
