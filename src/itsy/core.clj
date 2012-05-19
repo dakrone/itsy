@@ -7,25 +7,6 @@
 
 (def terminated Thread$State/TERMINATED)
 
-;; Queue for URLs to be worked on
-(def url-queue (LinkedBlockingQueue.))
-
-;; Map of URLs we've already seen/spidered
-(def seen-urls (atom {}))
-
-;; List of running worker threads
-(def running-workers (atom []))
-
-;; Canaries that keep worker threads alive
-(def worker-canaries (atom {}))
-
-;; Current count of seen urls
-(def url-count (atom 0))
-
-;; How many urls to spider before stopping
-(def url-limit 3000)
-
-
 ;; Debugging helpers
 (def trace true)
 (defn pdbg [& args]
@@ -42,19 +23,19 @@
 (defn enqueue-url
   "Enqueue the url assuming the url-count is below the limit and we haven't seen
   this url before."
-  [url]
-  (when (and (< @url-count url-limit)
-             (not (get @seen-urls url)))
+  [config url]
+  (when (and (< @(-> config :state :url-count) (:url-limit config))
+             (not (get @(-> config :state :seen-urls) url)))
     (when-let [url-info (valid-url? url)]
       (pdbg :enqueue-url url)
-      (swap! seen-urls assoc url true)
-      (.put url-queue {:url url :count @url-count})
-      (swap! url-count inc))))
+      (swap! (-> config :state :seen-urls) assoc url true)
+      (.put url-queue {:url url :count @(-> config :state :url-count)})
+      (swap! (-> config :state :url-count) inc))))
 
 
-(defn enqueue-urls [urls]
+(defn enqueue-urls [config urls]
   (doseq [url urls]
-    (enqueue-url url)))
+    (enqueue-url config url)))
 
 
 (def url-regex #"https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]")
@@ -63,83 +44,94 @@
   (when body
     (re-seq url-regex body)))
 
-(defn crawl-page [url-map handler]
+(defn crawl-page [config url-map]
   (try+
     (pdbg :retrieving-body-for url-map)
     (let [url (:url url-map)
           score (:count url-map)
           body (-> (http/get url
-                             {:socket-timeout 10000
-                              :conn-timeout 10000
-                              :insecure? true})
+                             (merge {:socket-timeout 10000
+                                     :conn-timeout 10000
+                                     :insecure? true}
+                                    (:http-opts config)))
                    :body)
           _ (pdbg :extracting-urls)
-          urls (extract-urls body)]
-      (enqueue-urls urls)
-      (handler url-map body))
+          urls ((:url-extractor config) body)]
+      (enqueue-urls config urls)
+      ((:handler config) url-map body))
     (catch Object _
       (pdbg :blurgh!))))
 
 
-(defn thread-status []
-  (zipmap (map (memfn getId) @running-workers)
-          (map (memfn getState) @running-workers)))
+(defn thread-status [config]
+  (zipmap (map (memfn getId) @(-> config :state :running-workers))
+          (map (memfn getState) @(-> config :state :running-workers))))
 
 
-(defn worker-fn [handler]
+(defn worker-fn [config]
   (fn worker-fn* []
     (loop []
       (pdbg :waiting-for-url)
       (when-let [url-map (.poll url-queue 3 TimeUnit/SECONDS)]
         (pdbg :got url-map)
-        (crawl-page url-map handler))
+        (crawl-page config url-map))
       (let [tid (.getId (Thread/currentThread))]
-        (pdbg :running? (get @worker-canaries tid))
-        (when (get @worker-canaries tid)
+        (pdbg :running? (get @(-> config :state :worker-canaries) tid))
+        (when (get @(-> config :state :worker-canaries) tid)
           (recur))))))
 
 
-(defn start-worker [handler]
-  (let [w-thread (Thread. (worker-fn handler))
+(defn start-worker [config]
+  (let [w-thread (Thread. (worker-fn config))
         w-tid (.getId w-thread)]
-    (swap! worker-canaries assoc w-tid true)
-    (swap! running-workers conj w-thread)
+    (swap! (-> config :state :worker-canaries) assoc w-tid true)
+    (swap! (-> config :state :running-workers) conj w-thread)
     (println :starting w-thread w-tid)
     (.start w-thread))
-  (println "New worker count:" (count @running-workers)))
+  (println "New worker count:" (count @(-> config :state :running-workers))))
 
 
-(defn stop-workers []
+(defn stop-workers [config]
   (println "Strangling canaries...")
-  (reset! worker-canaries {})
+  (reset! (-> config :state :worker-canaries) {})
   (println "Waiting for workers to finish...")
-  (map #(.join % 30000) @running-workers)
+  (map #(.join % 30000) @(-> config :state :running-workers))
   (Thread/sleep 10000)
-  (if (= #{terminated} (set (vals (thread-status))))
+  (if (= #{terminated} (set (vals (thread-status config))))
     (do
       (println "All workers stopped.")
-      (reset! running-workers []))
+      (reset! (-> config :state :running-workers) []))
     (do
       (println "Unable to stop all workers.")
-      (reset! running-workers
-              (remove #(= terminated (.getState %)) @running-workers))))
-  @running-workers)
+      (reset! (-> config :state :running-workers)
+              (remove #(= terminated (.getState %))
+                      @(-> config :state :running-workers)))))
+  @(-> config :state :running-workers))
 
 
 (defn crawl
   "Crawl a url with the given worker count and handler."
-  [url worker-count handler]
-  (println "Resetting URL count to 0.")
-  (reset! url-count 0)
-  (println "Resetting seen URL map.")
-  (reset! seen-urls {})
-  (println "Starting workers...")
-  (http/with-connection-pool {:timeout 5 :threads worker-count :insecure? true}
-    (dotimes [_ worker-count]
-      (start-worker handler))
-    (println "Starting crawl of" url)
-    (enqueue-url url))
-  nil)
+  [options]
+  (pdbg :options options)
+  (let [config (merge {:workers 5
+                       :url-limit 100
+                       :url-extractor extract-urls
+                       :state {:url-queue (LinkedBlockingQueue.)
+                               :url-count (atom 0)
+                               :running-workers (atom [])
+                               :worker-canaries (atom {})
+                               :seen-urls (atom {})}}
+                      options)]
+    (pdbg :config config)
+    (println "Starting workers...")
+    (http/with-connection-pool {:timeout 5
+                                :threads (:workers config)
+                                :insecure? true}
+      (dotimes [_ (:workers config)]
+        (start-worker config))
+      (println "Starting crawl of" (:url config))
+      (enqueue-url config (:url config)))
+    config))
 
 (defn palm
   "It's a HAND-ler.. get it? That was a terrible pun."
