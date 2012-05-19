@@ -91,9 +91,11 @@ happened:
 
 ## Todo
 
-- Relative URL extraction
+- Relative URL extraction/crawling
 - Handlers for common body actions
 - Helpers for dynamically raising/lowering thread count
+- Timed crawling, have threads clean themselves up after a limit
+- Have threads auto-clean when url-limit is hit
 
 ## License
 
