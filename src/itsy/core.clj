@@ -1,5 +1,7 @@
 (ns itsy.core
-  (:require [clojure.string :as s]
+  (:require [cemerick.url :refer [url]]
+            [clojure.string :as s]
+            [clojure.tools.logging :refer [info debug trace]]
             [clj-http.client :as http]
             [slingshot.slingshot :refer [try+]])
   (:import (java.net URL)
@@ -8,9 +10,9 @@
 (def terminated Thread$State/TERMINATED)
 
 ;; Debugging helpers
-(def trace true)
+(def trace-on true)
 (defn pdbg [& args]
-  (when trace
+  (when trace-on
     (apply println (str "[" (.getId (Thread/currentThread)) "]->") args)))
 
 
