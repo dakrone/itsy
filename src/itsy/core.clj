@@ -1,4 +1,5 @@
 (ns itsy.core
+  "Tool used to crawl web pages with an aritrary handler."
   (:require [cemerick.url :refer [url]]
             [clojure.string :as s]
             [clojure.tools.logging :refer [info debug trace warn]]
@@ -9,12 +10,17 @@
 
 (def terminated Thread$State/TERMINATED)
 
-(defn valid-url? [url-str]
+(defn valid-url?
+  "Test whether a URL is valid, returning a map of information about it if
+  valid, nil otherwise."
+  [url-str]
   (try
     (url url-str)
     (catch Exception _ nil)))
 
-(defn- enqueue* [config url]
+(defn- enqueue*
+  "Internal function to enqueue a url as a map with :url and :count."
+  [config url]
   (trace :enqueue-url url)
   (.put (-> config :state :url-queue)
         {:url url :count @(-> config :state :url-count)})
@@ -38,18 +44,25 @@
           (enqueue* config url))))))
 
 
-(defn enqueue-urls [config urls]
+(defn enqueue-urls
+  "Enqueue a collection of urls for work"
+  [config urls]
   (doseq [url urls]
     (enqueue-url config url)))
 
 
 (def url-regex #"https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]")
 
-(defn extract-urls [body]
+(defn extract-urls
+  "Internal function used to extract URLs from a page body."
+  [body]
   (when body
     (re-seq url-regex body)))
 
-(defn crawl-page [config url-map]
+(defn- crawl-page
+  "Internal crawling function that fetches a page, enqueues url found on that
+  page and calls the handler with the page body."
+  [config url-map]
   (try+
     (trace :retrieving-body-for url-map)
     (let [url (:url url-map)
@@ -63,12 +76,14 @@
       (trace "caught exception crawling" (:url url-map) "skipping."))))
 
 
-(defn thread-status [config]
+(defn thread-status
+  "Return a map of threadId to Thread.State for a config object."
+  [config]
   (zipmap (map (memfn getId) @(-> config :state :running-workers))
           (map (memfn getState) @(-> config :state :running-workers))))
 
 
-(defn worker-fn
+(defn- worker-fn
   "Generate a worker function for a config object."
   [config]
   (fn worker-fn* []
@@ -118,7 +133,7 @@
 
 
 (defn crawl
-  "Crawl a url with the given worker count and handler."
+  "Crawl a url with the given config."
   [options]
   (trace :options options)
   (let [hl (:host-limit options)
