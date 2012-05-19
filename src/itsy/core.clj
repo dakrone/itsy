@@ -24,9 +24,9 @@
   "Enqueue the url assuming the url-count is below the limit and we haven't seen
   this url before."
   [config url]
-  (when (or (neg? (:url-limit config))
-            (and (< @(-> config :state :url-count) (:url-limit config))
-                 (not (get @(-> config :state :seen-urls) url))))
+  (when (and (not (get @(-> config :state :seen-urls) url))
+             (or (neg? (:url-limit config))
+                 (< @(-> config :state :url-count) (:url-limit config))))
     (when-let [url-info (valid-url? url)]
       (pdbg :enqueue-url url)
       (swap! (-> config :state :seen-urls) assoc url true)
