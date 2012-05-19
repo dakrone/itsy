@@ -15,7 +15,7 @@
     (catch Exception _ nil)))
 
 (defn- enqueue* [config url]
-  (debug :enqueue-url url)
+  (trace :enqueue-url url)
   (.put (-> config :state :url-queue)
         {:url url :count @(-> config :state :url-count)})
   (swap! (-> config :state :url-count) inc))
