@@ -9,20 +9,13 @@
 
 (def terminated Thread$State/TERMINATED)
 
-;; Debugging helpers
-(def trace-on true)
-(defn pdbg [& args]
-  (when trace-on
-    (apply println (str "[" (.getId (Thread/currentThread)) "]->") args)))
-
-
 (defn valid-url? [url-str]
   (try
     (url url-str)
     (catch Exception _ nil)))
 
 (defn- enqueue* [config url]
-  (pdbg :enqueue-url url)
+  (debug :enqueue-url url)
   (.put (-> config :state :url-queue)
         {:url url :count @(-> config :state :url-count)})
   (swap! (-> config :state :url-count) inc))
@@ -58,16 +51,16 @@
 
 (defn crawl-page [config url-map]
   (try+
-    (pdbg :retrieving-body-for url-map)
+    (trace :retrieving-body-for url-map)
     (let [url (:url url-map)
           score (:count url-map)
           body (:body (http/get url (:http-opts config)))
-          _ (pdbg :extracting-urls)
+          _ (trace :extracting-urls)
           urls ((:url-extractor config) body)]
       (enqueue-urls config urls)
       ((:handler config) url-map body))
     (catch Object _
-      (pdbg :blurgh!))))
+      (trace :blurgh!))))
 
 
 (defn thread-status [config]
@@ -75,21 +68,26 @@
           (map (memfn getState) @(-> config :state :running-workers))))
 
 
-(defn worker-fn [config]
+(defn worker-fn
+  "Generate a worker function for a config object."
+  [config]
   (fn worker-fn* []
     (loop []
-      (pdbg :waiting-for-url)
+      (trace :waiting-for-url)
       (when-let [url-map (.poll (-> config :state :url-queue)
                                 3 TimeUnit/SECONDS)]
-        (pdbg :got url-map)
+        (trace :got url-map)
         (crawl-page config url-map))
       (let [tid (.getId (Thread/currentThread))]
-        (pdbg :running? (get @(-> config :state :worker-canaries) tid))
+        (trace :running? (get @(-> config :state :worker-canaries) tid))
         (when (get @(-> config :state :worker-canaries) tid)
           (recur))))))
 
 
-(defn start-worker [config]
+(defn start-worker
+  "Start a worker thread for a config object, updating the config's state with
+  the new Thread object."
+  [config]
   (let [w-thread (Thread. (worker-fn config))
         w-tid (.getId w-thread)]
     (swap! (-> config :state :worker-canaries) assoc w-tid true)
@@ -99,7 +97,9 @@
   (println "New worker count:" (count @(-> config :state :running-workers))))
 
 
-(defn stop-workers [config]
+(defn stop-workers
+  "Given a config object, stop all the workers for that config."
+  [config]
   (println "Strangling canaries...")
   (reset! (-> config :state :worker-canaries) {})
   (println "Waiting for workers to finish...")
@@ -120,16 +120,16 @@
 (defn crawl
   "Crawl a url with the given worker count and handler."
   [options]
-  (pdbg :options options)
+  (trace :options options)
   (let [hl (:host-limit options)
         host-limiter (cond
                        (string? hl) (try (:host (url hl))
                                          (catch Exception _
-                                           (pdbg :eh?)
+                                           (trace :eh?)
                                            hl))
                        (= true hl) (:host (url (:url options)))
                        :else hl)
-        _ (pdbg :host-limiter host-limiter)
+        _ (trace :host-limiter host-limiter)
         config (merge {:workers 5
                        :url-limit 100
                        :url-extractor extract-urls
@@ -143,7 +143,7 @@
                                    :insecure? true}}
                       options
                       {:host-limit host-limiter})]
-    (pdbg :config config)
+    (trace :config config)
     (println "Starting workers...")
     (http/with-connection-pool {:timeout 5
                                 :threads (:workers config)

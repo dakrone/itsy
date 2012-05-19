@@ -6,4 +6,6 @@
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [clj-http "0.4.1"]
                  [com.cemerick/url "0.0.6"]
-                 [org.clojure/tools.logging "0.2.3"]])
+                 [org.clojure/tools.logging "0.2.3"]
+                 [log4j "1.2.16"]]
+  :resource-paths ["etc"])
