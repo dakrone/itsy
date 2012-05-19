@@ -96,7 +96,7 @@ happened:
 - Handlers for common body actions
 - Helpers for dynamically raising/lowering thread count
 - Timed crawling, have threads clean themselves up after a limit
-- Have threads auto-clean when url-limit is hit
+- <del>Have threads auto-clean when url-limit is hit</del>
 
 ## License
 

@@ -88,15 +88,25 @@
   [config]
   (fn worker-fn* []
     (loop []
-      (trace :waiting-for-url)
+      (trace "grabbing url..." (.size (-> config :state :url-queue)))
       (when-let [url-map (.poll (-> config :state :url-queue)
                                 3 TimeUnit/SECONDS)]
         (trace :got url-map)
         (crawl-page config url-map))
       (let [tid (.getId (Thread/currentThread))]
         (trace :running? (get @(-> config :state :worker-canaries) tid))
-        (when (get @(-> config :state :worker-canaries) tid)
-          (recur))))))
+        (let [state (-> config :state)
+              limit-reached (and (pos? (:url-limit config))
+                                 (= @(:url-count state) (:url-limit config))
+                                 (zero? (.size (:url-queue state))))]
+          (when-not (get @(:worker-canaries state) tid)
+            (debug "my canary has died, terminating myself"))
+          (when limit-reached
+            (debug (str "url limit reached: (" @(:url-count state)
+                        "/" (:url-limit config) "), terminating myself")))
+          (when (and (get @(:worker-canaries state) tid)
+                     (not limit-reached))
+            (recur)))))))
 
 
 (defn start-worker
