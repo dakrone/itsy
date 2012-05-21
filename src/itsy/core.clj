@@ -88,14 +88,15 @@
   [config]
   (fn worker-fn* []
     (loop []
-      (trace "grabbing url..." (.size (-> config :state :url-queue)))
+      (trace "grabbing url from a queue of"
+             (.size (-> config :state :url-queue)) "items")
       (when-let [url-map (.poll (-> config :state :url-queue)
                                 3 TimeUnit/SECONDS)]
         (trace :got url-map)
         (crawl-page config url-map))
       (let [tid (.getId (Thread/currentThread))]
         (trace :running? (get @(-> config :state :worker-canaries) tid))
-        (let [state (-> config :state)
+        (let [state (:state config)
               limit-reached (and (pos? (:url-limit config))
                                  (= @(:url-count state) (:url-limit config))
                                  (zero? (.size (:url-queue state))))]
@@ -114,7 +115,7 @@
   the new Thread object."
   [config]
   (let [w-thread (Thread. (worker-fn config))
-        _ (.setName w-thread (str "itsy-worker-"(.getName w-thread)))
+        _ (.setName w-thread (str "itsy-worker-" (.getName w-thread)))
         w-tid (.getId w-thread)]
     (swap! (-> config :state :worker-canaries) assoc w-tid true)
     (swap! (-> config :state :running-workers) conj w-thread)
