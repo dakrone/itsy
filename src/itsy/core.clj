@@ -72,8 +72,10 @@
           urls ((:url-extractor config) body)]
       (enqueue-urls config urls)
       ((:handler config) url-map body))
-    (catch Object _
-      (trace "caught exception crawling" (:url url-map) "skipping."))))
+    (catch Object e
+      (trace "caught exception crawling " (:url url-map) " skipping.")
+      ;;(trace e)
+      )))
 
 
 (defn thread-status
