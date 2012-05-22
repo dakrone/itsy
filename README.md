@@ -33,8 +33,8 @@ In your project:
                :url-limit 100
                ;; function to use to extract urls from a page, a
                ;; function that takes one argument, the body of a page.
-               ;; (optional, defaults to itsy's extract-urls)
-               :url-extractor extract-urls
+               ;; (optional, defaults to itsy's extract-all)
+               :url-extractor extract-all
                ;; http options for clj-http, (optional, defaults to
                ;; {:socket-timeout 10000 :conn-timeout 10000 :insecure? true})
                :http-opts {}
@@ -92,11 +92,13 @@ happened:
 
 ## Todo
 
-- Relative URL extraction/crawling
+- <del>Relative URL extraction/crawling</del>
+- Always better URL extraction
 - Handlers for common body actions
 - Helpers for dynamically raising/lowering thread count
 - Timed crawling, have threads clean themselves up after a limit
 - <del>Have threads auto-clean when url-limit is hit</del>
+- Perhaps use Tika for HTML extraction?
 
 ## License
 

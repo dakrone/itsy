@@ -3,6 +3,7 @@
   (:require [cemerick.url :refer [url]]
             [clojure.string :as s]
             [clojure.tools.logging :refer [info debug trace warn]]
+            [clojure.set :as set]
             [clj-http.client :as http]
             [slingshot.slingshot :refer [try+]])
   (:import (java.net URL)
@@ -52,12 +53,44 @@
 
 
 (def url-regex #"https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]")
-
-(defn extract-urls
+(defn extract-urls1
   "Internal function used to extract URLs from a page body."
-  [body]
+  [original-url body]
   (when body
     (re-seq url-regex body)))
+
+(defn extract-urls2
+  [original-url body]
+  (when body
+    (let [candidates (->> (re-seq #"href='([^']+)'" body)
+                          (map second)
+                          (remove #(or (= % "/")
+                                       (= % "#")))
+                          set)
+          fq (set (filter #(.startsWith % "http") candidates))
+          ufq (set/difference candidates fq)
+          fq-ufq (map #(str (url original-url %)) ufq)]
+      (concat fq fq-ufq))))
+
+(defn extract-urls3
+  [original-url body]
+  (when body
+    (let [candidates (->> (re-seq #"href=\"([^\"]+)\"" body)
+                          (map second)
+                          (remove #(or (= % "/")
+                                       (= % "#")))
+                          set)
+          fq (set (filter #(.startsWith % "http") candidates))
+          ufq (set/difference candidates fq)
+          fq-ufq (map #(str (url original-url %)) ufq)]
+      (concat fq fq-ufq))))
+
+(defn extract-all
+  "Dumb URL extraction."
+  [& args]
+  (set (concat (apply extract-urls1 args)
+               (apply extract-urls2 args)
+               (apply extract-urls3 args))))
 
 (defn- crawl-page
   "Internal crawling function that fetches a page, enqueues url found on that
@@ -69,7 +102,7 @@
           score (:count url-map)
           body (:body (http/get url (:http-opts config)))
           _ (trace :extracting-urls)
-          urls ((:url-extractor config) body)]
+          urls ((:url-extractor config) url body)]
       (enqueue-urls config urls)
       ((:handler config) url-map body))
     (catch Object e
@@ -158,7 +191,7 @@
         _ (trace :host-limiter host-limiter)
         config (merge {:workers 5
                        :url-limit 100
-                       :url-extractor extract-urls
+                       :url-extractor extract-all
                        :state {:url-queue (LinkedBlockingQueue.)
                                :url-count (atom 0)
                                :running-workers (atom [])
