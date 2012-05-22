@@ -53,62 +53,46 @@
 
 
 (def url-regex #"https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]")
-(defn extract-urls1
-  "Internal function used to extract URLs from a page body."
-  [original-url body]
-  (when body
-    (re-seq url-regex body)))
-
-(defn extract-urls2
-  [original-url body]
-  (when body
-    (let [candidates (->> (re-seq #"href='([^']+)'" body)
-                          (map second)
-                          (remove #(or (= % "/")
-                                       (= % "#")))
-                          set)
-          fq (set (filter #(.startsWith % "http") candidates))
-          ufq (set/difference candidates fq)
-          fq-ufq (map #(str (url original-url %)) ufq)]
-      (concat fq fq-ufq))))
-
-(defn extract-urls3
-  [original-url body]
-  (when body
-    (let [candidates (->> (re-seq #"href=\"([^\"]+)\"" body)
-                          (map second)
-                          (remove #(or (= % "/")
-                                       (= % "#")))
-                          set)
-          fq (set (filter #(.startsWith % "http") candidates))
-          ufq (set/difference candidates fq)
-          fq-ufq (map #(str (url original-url %)) ufq)]
-      (concat fq fq-ufq))))
 
 (defn extract-all
   "Dumb URL extraction."
-  [& args]
-  (set (concat (apply extract-urls1 args)
-               (apply extract-urls2 args)
-               (apply extract-urls3 args))))
+  [original-url body]
+  (when body
+    (let [candidates1 (->> (re-seq #"href=\"([^\"]+)\"" body)
+                           (map second)
+                           (remove #(or (= % "/")
+                                        (= % "#")))
+                           set)
+          candidates2 (->> (re-seq #"href='([^']+)'" body)
+                           (map second)
+                           (remove #(or (= % "/")
+                                        (= % "#")))
+                           set)
+          candidates3 (re-seq url-regex body)
+          fq (set (filter #(.startsWith % "http") (concat candidates1
+                                                          candidates2
+                                                          candidates3)))
+          ufq (set/difference candidates fq)
+          fq-ufq (map #(str (url original-url %)) ufq)]
+      (set (concat fq fq-ufq)))))
 
 (defn- crawl-page
   "Internal crawling function that fetches a page, enqueues url found on that
   page and calls the handler with the page body."
   [config url-map]
   (try+
-    (trace :retrieving-body-for url-map)
-    (let [url (:url url-map)
-          score (:count url-map)
-          body (:body (http/get url (:http-opts config)))
-          _ (trace :extracting-urls)
-          urls ((:url-extractor config) url body)]
-      (enqueue-urls config urls)
-      ((:handler config) url-map body))
-    (catch Object e
-      (trace "caught exception crawling " (:url url-map) " skipping.")
-      ;;(trace e)
-      )))
+   (trace :retrieving-body-for url-map)
+   (let [url (:url url-map)
+         score (:count url-map)
+         body (:body (http/get url (:http-opts config)))
+         _ (trace :extracting-urls)
+         urls ((:url-extractor config) url body)]
+     (enqueue-urls config urls)
+     ((:handler config) url-map body))
+   (catch Object e
+     (trace "caught exception crawling " (:url url-map) " skipping.")
+     ;;(trace e)
+     )))
 
 
 (defn thread-status
@@ -184,10 +168,10 @@
   (trace :options options)
   (let [hl (:host-limit options)
         host-limiter (cond
-                       (string? hl) (try (:host (url hl))
-                                         (catch Exception _ hl))
-                       (= true hl) (:host (url (:url options)))
-                       :else hl)
+                      (string? hl) (try (:host (url hl))
+                                        (catch Exception _ hl))
+                      (= true hl) (:host (url (:url options)))
+                      :else hl)
         _ (trace :host-limiter host-limiter)
         config (merge {:workers 5
                        :url-limit 100
