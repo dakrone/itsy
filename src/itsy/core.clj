@@ -2,10 +2,10 @@
   "Tool used to crawl web pages with an aritrary handler."
   (:require [cemerick.url :refer [url]]
             [clojure.string :as s]
-            [clojure.tools.logging :refer [info debug trace warn]]
+            [clojure.tools.logging :refer [debug error info trace warn]]
             [clojure.set :as set]
             [clj-http.client :as http]
-            [slingshot.slingshot :refer [try+]])
+            [slingshot.slingshot :refer [get-thrown-object try+]])
   (:import (java.net URL)
            (java.util.concurrent LinkedBlockingQueue TimeUnit)))
 
@@ -55,7 +55,7 @@
 (def url-regex #"https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]")
 
 (defn extract-all
-  "Dumb URL extraction."
+  "Dumb URL extraction based on regular expressions. Extracts relative URLs."
   [original-url body]
   (when body
     (let [candidates1 (->> (re-seq #"href=\"([^\"]+)\"" body)
@@ -69,10 +69,9 @@
                                         (= % "#")))
                            set)
           candidates3 (re-seq url-regex body)
-          fq (set (filter #(.startsWith % "http") (concat candidates1
-                                                          candidates2
-                                                          candidates3)))
-          ufq (set/difference candidates fq)
+          all-candidates (set (concat candidates1 candidates2 candidates3))
+          fq (set (filter #(.startsWith % "http") all-candidates))
+          ufq (set/difference all-candidates fq)
           fq-ufq (map #(str (url original-url %)) ufq)]
       (set (concat fq fq-ufq)))))
 
@@ -81,18 +80,26 @@
   page and calls the handler with the page body."
   [config url-map]
   (try+
-   (trace :retrieving-body-for url-map)
-   (let [url (:url url-map)
-         score (:count url-map)
-         body (:body (http/get url (:http-opts config)))
-         _ (trace :extracting-urls)
-         urls ((:url-extractor config) url body)]
-     (enqueue-urls config urls)
-     ((:handler config) url-map body))
-   (catch Object e
-     (trace "caught exception crawling " (:url url-map) " skipping.")
-     ;;(trace e)
-     )))
+    (trace :retrieving-body-for url-map)
+    (let [url (:url url-map)
+          score (:count url-map)
+          body (:body (http/get url (:http-opts config)))
+          _ (trace :extracting-urls)
+          urls ((:url-extractor config) url body)]
+      (enqueue-urls config urls)
+      (try
+        ((:handler config) url-map body)
+        (catch Exception e
+          (error e "Exception executing handler"))))
+    (catch java.net.SocketTimeoutException e
+      (trace "connection timed out to" (:url url-map)))
+    (catch java.net.UnknownHostException e
+      (trace "unknown host" (:url url-map) "skipping."))
+    (catch map? m
+      (debug "unknown exception crawling" (:url url-map) "skipping.")
+      (debug (dissoc m :body) "caught"))
+    (catch Object e
+      (debug e "!!!"))))
 
 
 (defn thread-status
@@ -162,16 +169,22 @@
   @(-> config :state :running-workers))
 
 
+(def default-http-opts {:socket-timeout 10000
+                        :conn-timeout 10000
+                        :insecure? true
+                        :throw-entire-message? false})
+
+
 (defn crawl
   "Crawl a url with the given config."
   [options]
   (trace :options options)
   (let [hl (:host-limit options)
         host-limiter (cond
-                      (string? hl) (try (:host (url hl))
-                                        (catch Exception _ hl))
-                      (= true hl) (:host (url (:url options)))
-                      :else hl)
+                       (string? hl) (try (:host (url hl))
+                                         (catch Exception _ hl))
+                       (= true hl) (:host (url (:url options)))
+                       :else hl)
         _ (trace :host-limiter host-limiter)
         config (merge {:workers 5
                        :url-limit 100
@@ -181,9 +194,7 @@
                                :running-workers (atom [])
                                :worker-canaries (atom {})
                                :seen-urls (atom {})}
-                       :http-opts {:socket-timeout 10000
-                                   :conn-timeout 10000
-                                   :insecure? true}}
+                       :http-opts default-http-opts}
                       options
                       {:host-limit host-limiter})]
     (trace :config config)
