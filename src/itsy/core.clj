@@ -217,3 +217,8 @@
   "It's a HAND-ler.. get it? That was a terrible pun."
   [url-map body]
   (println :url (:url url-map) :size (count body)))
+
+(defn noop
+  "handler that does nothing"
+  [& _]
+  nil)
