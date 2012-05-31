@@ -102,16 +102,37 @@ examples for writing your own.
 
 ### Text file handler
 
-not yet written!
+The text file handler stores web pages in text files
+
+Usage:
+
+```clojure
+(ns bar
+  (:require [itsy.core :refer :all]
+            [itsy.handlers.textfiles :refer :all]))
+
+;; The directory will be created when the handler is created if it
+;; doesn't already exist
+(def txt-handler (make-textfile-handler {:directory "/mnt/data" :extension ".txt"}))
+
+(def c (crawl {:url "http://example.com" :handler txt-handler}))
+
+;; then look in the /mnt/data directory
+```
 
 ### ElasticSearch handler
 
 The elasticsearch handler stores documents with the following mapping:
 
 ```clojure
-{:id "<md5 string of the URL>"
- :url "http://url.being.crawled.com"
- :body "... web page body ..."}
+{:id {:type "string"
+      :index "not_analyzed"
+      :store "yes"}
+ :url {:type "string"
+       :index "not_analyzed"
+       :store "yes"}
+ :body {:type "string"
+        :store "yes"}}
 ```
 
 Usage:
@@ -146,7 +167,7 @@ Usage:
 - Always better URL extraction
 - Handlers for common body actions
   - <del>elasticsearch</del>
-  - text files
+  - <del>text files</del>
 - <del>Helpers for dynamically raising/lowering thread count</del>
 - Timed crawling, have threads clean themselves up after a limit
 - <del>Have threads auto-clean when url-limit is hit</del>
