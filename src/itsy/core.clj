@@ -98,6 +98,8 @@
       (trace "connection timed out to" (:url url-map)))
     (catch java.net.UnknownHostException e
       (trace "unknown host" (:url url-map) "skipping."))
+    (catch org.apache.http.conn.HttpHostConnectException e
+      (trace "unable to connect to" (:url url-map) "skipping"))
     (catch map? m
       (debug "unknown exception retrieving" (:url url-map) "skipping.")
       (debug (dissoc m :body) "caught"))
