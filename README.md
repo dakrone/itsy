@@ -54,6 +54,11 @@ In your project:
  39 #<State RUNNABLE>, 40 #<State RUNNABLE>, 41 #<State RUNNABLE>,
  42 #<State RUNNABLE>}
 
+(add-worker c)
+;; adds an additional thread worker
+
+(remove-worker c)
+;; removes a worker from the pool
 
 (stop-workers c)
 ;; stop-workers will return a collection of all threads it failed to
@@ -71,9 +76,9 @@ happened:
 ;; URLs that were seen/queued
  :url-count #<Atom@67d6b87e: 2>,
  ;; running worker threads (will contain thread objects while crawling)
- :running-workers #<Atom@decdc7b: []>,
+ :running-workers #<Ref@decdc7b: []>,
  ;; canaries for running worker threads
- :worker-canaries #<Atom@397f1661: {}>,
+ :worker-canaries #<Ref@397f1661: {}>,
  ;; a map of URL to times seen/extracted from the body of a page
  :seen-urls
  #<Atom@469657c4:
@@ -95,10 +100,13 @@ happened:
 - <del>Relative URL extraction/crawling</del>
 - Always better URL extraction
 - Handlers for common body actions
-- Helpers for dynamically raising/lowering thread count
+  - <del>elasticsearch</del>
+  - lucene
+  - text files
+- <del>Helpers for dynamically raising/lowering thread count</del>
 - Timed crawling, have threads clean themselves up after a limit
 - <del>Have threads auto-clean when url-limit is hit</del>
-- Perhaps use Tika for HTML extraction?
+- Use Tika for HTML extraction?
 
 ## License
 
