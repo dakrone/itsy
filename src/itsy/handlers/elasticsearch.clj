@@ -14,7 +14,7 @@
   (.toString (BigInteger. 1 (.digest md (.getBytes s))) 16))
 
 (defn make-es-handler
-  ""
+  "Create an Itsy handler that will index document bodies into ElasticSearch"
   [config]
   (let [default {:es-url "http://localhost:9200/"
                  :es-index "crawl"

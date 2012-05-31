@@ -95,6 +95,55 @@ happened:
     "http://www.google.com/cse" 1}>}
 ```
 
+## Example handlers
+
+Itsy includes handlers for common actions, either to be used, or
+examples for writing your own.
+
+### Text file handler
+
+not yet written!
+
+### Lucene handler
+
+not yet written!
+
+### ElasticSearch handler
+
+The elasticsearch handler stores documents with the following mapping:
+
+```clojure
+{:id "<md5 string of the URL>"
+ :url "http://url.being.crawled.com"
+ :body "... web page body ..."}
+```
+
+Usage:
+
+```clojure
+(ns foo
+  (:require [itsy.core :refer :all]
+            [itsy.handlers.elasticsearch :refer :all]))
+
+;; These are the default settings
+(def index-settings {:settings
+                     {:index
+                      {:number_of_shards 2
+                       :number_of_replicas 0}}})
+
+;; If the ES index doesn't exist, make-es-handler will create it when called.
+(defn es-handler (make-es-handler {:es-url "http://localhost:9200/"
+                                   :es-index "crawl"
+                                   :es-type "page"
+                                   :es-index-settings index-settings
+                                   :http-opts {}}))
+
+(def c (crawl {:url "http://example.com" :handler es-handler}))
+
+;; ... crawling and indexing ensues ...
+```
+
+
 ## Todo
 
 - <del>Relative URL extraction/crawling</del>
