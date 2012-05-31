@@ -61,19 +61,20 @@
     (let [candidates1 (->> (re-seq #"href=\"([^\"]+)\"" body)
                            (map second)
                            (remove #(or (= % "/")
-                                        (= % "#")))
+                                        (.startsWith % "#")))
                            set)
           candidates2 (->> (re-seq #"href='([^']+)'" body)
                            (map second)
                            (remove #(or (= % "/")
-                                        (= % "#")))
+                                        (.startsWith % "#")))
                            set)
           candidates3 (re-seq url-regex body)
           all-candidates (set (concat candidates1 candidates2 candidates3))
           fq (set (filter #(.startsWith % "http") all-candidates))
           ufq (set/difference all-candidates fq)
-          fq-ufq (map #(str (url original-url %)) ufq)]
-      (set (concat fq fq-ufq)))))
+          fq-ufq (map #(str (url original-url %)) ufq)
+          all (set (concat fq fq-ufq))]
+      all)))
 
 (defn- crawl-page
   "Internal crawling function that fetches a page, enqueues url found on that
@@ -93,10 +94,12 @@
           (error e "Exception executing handler"))))
     (catch java.net.SocketTimeoutException e
       (trace "connection timed out to" (:url url-map)))
+    (catch org.apache.http.conn.ConnectTimeoutException e
+      (trace "connection timed out to" (:url url-map)))
     (catch java.net.UnknownHostException e
       (trace "unknown host" (:url url-map) "skipping."))
     (catch map? m
-      (debug "unknown exception crawling" (:url url-map) "skipping.")
+      (debug "unknown exception retrieving" (:url url-map) "skipping.")
       (debug (dissoc m :body) "caught"))
     (catch Object e
       (debug e "!!!"))))
