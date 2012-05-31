@@ -159,20 +159,22 @@
 (defn stop-workers
   "Given a config object, stop all the workers for that config."
   [config]
-  (info "Strangling canaries...")
-  (dosync
-   (ref-set (-> config :state :worker-canaries) {})
-   (info "Waiting for workers to finish...")
-   (map #(.join % 30000) @(-> config :state :running-workers))
-   (Thread/sleep 10000)
-   (if (= #{terminated} (set (vals (thread-status config))))
-     (do
-       (info "All workers stopped.")
-       (ref-set (-> config :state :running-workers) []))
-     (do
-       (warn "Unable to stop all workers.")
-       (alter (-> config :state :running-workers)
-              remove #(= terminated (.getState %))))))
+  (when (pos? (count @(-> config :state :running-workers)))
+    (info "Strangling canaries...")
+    (dosync
+     (ref-set (-> config :state :worker-canaries) {})
+     (info "Waiting for workers to finish...")
+     (map #(.join % 30000) @(-> config :state :running-workers))
+     (Thread/sleep 10000)
+     (if (= #{terminated} (set (vals (thread-status config))))
+       (do
+         (info "All workers stopped.")
+         (ref-set (-> config :state :running-workers) []))
+       (do
+         (warn "Unable to stop all workers.")
+         (ref-set (-> config :state :running-workers)
+                  (remove #(= terminated (.getState %))
+                          @(-> c :state :running-workers)))))))
   @(-> config :state :running-workers))
 
 

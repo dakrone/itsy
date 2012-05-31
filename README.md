@@ -104,10 +104,6 @@ examples for writing your own.
 
 not yet written!
 
-### Lucene handler
-
-not yet written!
-
 ### ElasticSearch handler
 
 The elasticsearch handler stores documents with the following mapping:
@@ -150,7 +146,6 @@ Usage:
 - Always better URL extraction
 - Handlers for common body actions
   - <del>elasticsearch</del>
-  - lucene
   - text files
 - <del>Helpers for dynamically raising/lowering thread count</del>
 - Timed crawling, have threads clean themselves up after a limit
