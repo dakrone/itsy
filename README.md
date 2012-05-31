@@ -120,7 +120,7 @@ Usage:
 ;; then look in the /mnt/data directory
 ```
 
-### ElasticSearch handler
+### [ElasticSearch](http://elasticsearch.org) handler
 
 The elasticsearch handler stores documents with the following mapping:
 
