@@ -7,5 +7,7 @@
                  [clj-http "0.4.1"]
                  [com.cemerick/url "0.0.6"]
                  [org.clojure/tools.logging "0.2.3"]
-                 [log4j "1.2.16"]]
+                 [log4j "1.2.16"]
+                 [org.apache.tika/tika-core "1.1"]
+                 [org.apache.tika/tika-parsers "1.1"]]
   :resource-paths ["etc"])

@@ -55,7 +55,7 @@ In your project:
  42 #<State RUNNABLE>}
 
 (add-worker c)
-;; adds an additional thread worker
+;; adds an additional thread worker to the pool
 
 (remove-worker c)
 ;; removes a worker from the pool
@@ -95,7 +95,7 @@ happened:
     "http://www.google.com/cse" 1}>}
 ```
 
-## Example handlers
+## Included handlers
 
 Itsy includes handlers for common actions, either to be used, or
 examples for writing your own.
