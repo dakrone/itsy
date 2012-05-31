@@ -148,8 +148,9 @@
   (let [w-thread (Thread. (worker-fn config))
         _ (.setName w-thread (str "itsy-worker-" (.getName w-thread)))
         w-tid (.getId w-thread)]
-    (swap! (-> config :state :worker-canaries) assoc w-tid true)
-    (swap! (-> config :state :running-workers) conj w-thread)
+    (dosync
+     (alter (-> config :state :worker-canaries) assoc w-tid true)
+     (alter (-> config :state :running-workers) conj w-thread))
     (info "Starting thread:" w-thread w-tid)
     (.start w-thread))
   (info "New worker count:" (count @(-> config :state :running-workers))))
@@ -159,19 +160,45 @@
   "Given a config object, stop all the workers for that config."
   [config]
   (info "Strangling canaries...")
-  (reset! (-> config :state :worker-canaries) {})
-  (info "Waiting for workers to finish...")
-  (map #(.join % 30000) @(-> config :state :running-workers))
-  (Thread/sleep 10000)
-  (if (= #{terminated} (set (vals (thread-status config))))
-    (do
-      (info "All workers stopped.")
-      (reset! (-> config :state :running-workers) []))
-    (do
-      (warn "Unable to stop all workers.")
-      (swap! (-> config :state :running-workers)
-             remove #(= terminated (.getState %)))))
+  (dosync
+   (ref-set (-> config :state :worker-canaries) {})
+   (info "Waiting for workers to finish...")
+   (map #(.join % 30000) @(-> config :state :running-workers))
+   (Thread/sleep 10000)
+   (if (= #{terminated} (set (vals (thread-status config))))
+     (do
+       (info "All workers stopped.")
+       (ref-set (-> config :state :running-workers) []))
+     (do
+       (warn "Unable to stop all workers.")
+       (alter (-> config :state :running-workers)
+              remove #(= terminated (.getState %))))))
   @(-> config :state :running-workers))
+
+
+(defn add-worker
+  "Given a config object, add a worker to the pool, returns the new
+  worker count."
+  [config]
+  (info "Adding one additional worker to the pool")
+  (start-worker config)
+  (count @(-> config :state :running-workers)))
+
+
+(defn remove-worker
+  "Given a config object, remove a worker from the pool, returns the new
+  worker count."
+  [config]
+  (info "Removing one worker from the pool")
+  (dosync
+   (when-let [worker (first @(-> config :state :running-workers))]
+     (let [new-workers (drop 1 @(-> config :state :running-workers))
+           tid (.getId worker)]
+       (debug "Strangling canary for Thread:" tid)
+       (alter (-> config :state :worker-canaries) assoc tid false)
+       (ref-set (-> config :state :running-workers) new-workers))))
+  (info "New worker count:" (count @(-> config :state :running-workers)))
+  (count @(-> config :state :running-workers)))
 
 
 (def default-http-opts {:socket-timeout 10000
@@ -196,8 +223,8 @@
                        :url-extractor extract-all
                        :state {:url-queue (LinkedBlockingQueue.)
                                :url-count (atom 0)
-                               :running-workers (atom [])
-                               :worker-canaries (atom {})
+                               :running-workers (ref [])
+                               :worker-canaries (ref {})
                                :seen-urls (atom {})}
                        :http-opts default-http-opts}
                       options
