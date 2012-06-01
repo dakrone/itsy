@@ -176,6 +176,7 @@ Usage:
 - Timed crawling, have threads clean themselves up after a limit
 - <del>Have threads auto-clean when url-limit is hit</del>
 - <del>Use Tika for HTML extraction</del>
+- Write tests
 
 ## License
 
