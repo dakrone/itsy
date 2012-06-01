@@ -174,7 +174,7 @@
          (warn "Unable to stop all workers.")
          (ref-set (-> config :state :running-workers)
                   (remove #(= terminated (.getState %))
-                          @(-> c :state :running-workers)))))))
+                          @(-> config :state :running-workers)))))))
   @(-> config :state :running-workers))
 
 

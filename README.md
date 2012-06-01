@@ -102,7 +102,10 @@ examples for writing your own.
 
 ### Text file handler
 
-The text file handler stores web pages in text files
+The text file handler stores web pages in text files. It uses the
+`html->str` method in `itsy.extract` to convert HTML documents to
+plain text (which in turn uses [Tika](http://tika.apache.org) to
+extract HTML to plain text).
 
 Usage:
 
@@ -168,10 +171,11 @@ Usage:
 - Handlers for common body actions
   - <del>elasticsearch</del>
   - <del>text files</del>
+  - other?
 - <del>Helpers for dynamically raising/lowering thread count</del>
 - Timed crawling, have threads clean themselves up after a limit
 - <del>Have threads auto-clean when url-limit is hit</del>
-- Use Tika for HTML extraction?
+- <del>Use Tika for HTML extraction</del>
 
 ## License
 

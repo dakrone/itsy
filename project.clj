@@ -8,6 +8,10 @@
                  [com.cemerick/url "0.0.6"]
                  [org.clojure/tools.logging "0.2.3"]
                  [log4j "1.2.16"]
+                 [org.slf4j/slf4j-api "1.6.4"]
+                 [org.slf4j/slf4j-log4j12 "1.6.4"]
+                 [org.slf4j/jcl-over-slf4j "1.6.4"]
+                 [org.slf4j/jul-to-slf4j "1.6.4"]
                  [org.apache.tika/tika-core "1.1"]
                  [org.apache.tika/tika-parsers "1.1"]]
   :resource-paths ["etc"])

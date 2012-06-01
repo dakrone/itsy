@@ -2,7 +2,8 @@
   "Handler to index web pages into a directory of text files"
   (:require [clojure.java.io :refer [file]]
             [clojure.tools.logging :refer [info debug trace warn]]
-            [clj-http.util :as util]))
+            [clj-http.util :as util]
+            [itsy.extract :refer [html->str]]))
 
 (defn make-textfile-handler
   "Create a handler that saves urls into text files"
@@ -14,9 +15,9 @@
                          url (.replace url "https://" "")]
                      (file directory (str (util/url-encode url) extension))))]
     (when-not (.exists directory)
-      (info "Creating directory" (.getAbsolutePath directory))
+      (info "Creating directory" (str (.getAbsolutePath directory)))
       (.mkdir directory))
     (fn textfile-handler* [url-map body]
       (let [f (file-for (:url url-map))]
         (trace "writing" (.getAbsolutePath f))
-        (spit f body)))))
+        (spit f (str "URL: " (:url url-map) "\n\n" (html->str body)))))))
