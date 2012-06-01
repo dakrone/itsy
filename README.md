@@ -95,6 +95,13 @@ happened:
     "http://www.google.com/cse" 1}>}
 ```
 
+## Features
+- Multithreaded, with the ability to add and remove workers as needed
+- No global state, run multiple crawlers with multiple threads at once
+- Pre-written handlers for text files and ElasticSearch
+- Skips URLs that have been seen before
+- Domain limiting to crawl pages only belonging to a certain domain
+
 ## Included handlers
 
 Itsy includes handlers for common actions, either to be used, or
