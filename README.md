@@ -16,8 +16,8 @@ In your project:
 (ns myns.foo
   (:require [itsy.core :refer :all]))
 
-(defn my-handler [url-map page-body]
-  (println (:url url-map) "has a count of" (count page-body)))
+(defn my-handler [{:keys [url body]}]
+  (println url "has a count of" (count body)))
 
 (def c (crawl {;; initial URL to start crawling at (required)
                :url "http://aoeu.com"

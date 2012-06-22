@@ -40,9 +40,8 @@
       (info "Creating index" es-index "with:" creation-settings)
       (http/post (str es-url es-index)
                  (merge http-opts {:body (json/encode creation-settings)})))
-    (fn es-handler* [url-map body]
-      (let [url (:url url-map)
-            id (md5 url)]
+    (fn es-handler* [{:keys [url body]}]
+      (let [id (md5 url)]
         (trace "indexing" id "->" url (str "[" (count body) "]"))
         (http/put (str es-url es-index "/" es-type "/" id)
                   (merge http-opts

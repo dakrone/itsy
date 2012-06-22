@@ -17,7 +17,7 @@
     (when-not (.exists directory)
       (info "Creating directory" (str (.getAbsolutePath directory)))
       (.mkdir directory))
-    (fn textfile-handler* [url-map body]
-      (let [f (file-for (:url url-map))]
+    (fn textfile-handler* [{:keys [url body]}]
+      (let [f (file-for url)]
         (trace "writing" (.getAbsolutePath f))
-        (spit f (str "URL: " (:url url-map) "\n\n" (html->str body)))))))
+        (spit f (str "URL: " url "\n\n" (html->str body)))))))
