@@ -89,7 +89,7 @@
           urls ((:url-extractor config) url body)]
       (enqueue-urls config urls)
       (try
-        ((:handler config) url-map body)
+        ((:handler config) (assoc url-map :body body))
         (catch Exception e
           (error e "Exception executing handler"))))
     (catch java.net.SocketTimeoutException e
