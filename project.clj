@@ -1,4 +1,4 @@
-(defproject itsy "0.1.1-SNAPSHOT"
+(defproject itsy "0.1.1"
   :description "A threaded web-spider written in Clojure "
   :url "https://github.com/dakrone/itsy"
   :license {:name "Eclipse Public License"
