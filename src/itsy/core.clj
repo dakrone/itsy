@@ -125,10 +125,16 @@
       (when-let [url-map (.poll (-> config :state :url-queue)
                                 3 TimeUnit/SECONDS)]
         (trace :got url-map)
-        (trace :robots robots/*host-robots*)
-        (if (robots/crawlable? (:url url-map))
-          (crawl-page config url-map)
-          (trace :not-crawling (:url url-map))))
+        (cond
+         
+         (not (-> config :polite?))
+         (crawl-page config url-map)
+
+         (robots/crawlable? (:url url-map))
+         (crawl-page config url-map)
+         
+         :else
+         (trace :politely-not-crawling (:url url-map))))
       (let [tid (.getId (Thread/currentThread))]
         (trace :running? (get @(-> config :state :worker-canaries) tid))
         (let [state (:state config)
@@ -232,7 +238,8 @@
                                :running-workers (ref [])
                                :worker-canaries (ref {})
                                :seen-urls (atom {})}
-                       :http-opts default-http-opts}
+                       :http-opts default-http-opts
+                       :polite?   true}
                       options
                       {:host-limit host-limiter})]
     (trace :config config)
