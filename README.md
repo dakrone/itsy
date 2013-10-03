@@ -43,7 +43,10 @@ In your project:
                ;; limits to the same domain as the original :url, if set
                ;; to a string, limits crawling to the hostname of the
                ;; given url
-               :host-limit false}))
+               :host-limit false
+               ;; polite crawlers obey robots.txt directives
+               ;; by default this crawler is polite
+               :polite? true}))
 
 ;; ... crawling ensues ...
 
