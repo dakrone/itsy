@@ -5,6 +5,7 @@
             [clojure.tools.logging :refer [debug error info trace warn]]
             [clojure.set :as set]
             [clj-http.client :as http]
+            [itsy.robots :as robots]
             [slingshot.slingshot :refer [get-thrown-object try+]])
   (:import (java.net URL)
            (java.util.concurrent LinkedBlockingQueue TimeUnit)))
@@ -81,30 +82,30 @@
   page and calls the handler with the page body."
   [config url-map]
   (try+
-    (trace :retrieving-body-for url-map)
-    (let [url (:url url-map)
-          score (:count url-map)
-          body (:body (http/get url (:http-opts config)))
-          _ (trace :extracting-urls)
-          urls ((:url-extractor config) url body)]
-      (enqueue-urls config urls)
-      (try
-        ((:handler config) (assoc url-map :body body))
-        (catch Exception e
-          (error e "Exception executing handler"))))
-    (catch java.net.SocketTimeoutException e
-      (trace "connection timed out to" (:url url-map)))
-    (catch org.apache.http.conn.ConnectTimeoutException e
-      (trace "connection timed out to" (:url url-map)))
-    (catch java.net.UnknownHostException e
-      (trace "unknown host" (:url url-map) "skipping."))
-    (catch org.apache.http.conn.HttpHostConnectException e
-      (trace "unable to connect to" (:url url-map) "skipping"))
-    (catch map? m
-      (debug "unknown exception retrieving" (:url url-map) "skipping.")
-      (debug (dissoc m :body) "caught"))
-    (catch Object e
-      (debug e "!!!"))))
+   (trace :retrieving-body-for url-map)
+   (let [url (:url url-map)
+         score (:count url-map)
+         body (:body (http/get url (:http-opts config)))
+         _ (trace :extracting-urls)
+         urls ((:url-extractor config) url body)]
+     (enqueue-urls config urls)
+     (try
+       ((:handler config) (assoc url-map :body body))
+       (catch Exception e
+         (error e "Exception executing handler"))))
+   (catch java.net.SocketTimeoutException e
+     (trace "connection timed out to" (:url url-map)))
+   (catch org.apache.http.conn.ConnectTimeoutException e
+     (trace "connection timed out to" (:url url-map)))
+   (catch java.net.UnknownHostException e
+     (trace "unknown host" (:url url-map) "skipping."))
+   (catch org.apache.http.conn.HttpHostConnectException e
+     (trace "unable to connect to" (:url url-map) "skipping"))
+   (catch map? m
+     (debug "unknown exception retrieving" (:url url-map) "skipping.")
+     (debug (dissoc m :body) "caught"))
+   (catch Object e
+     (debug e "!!!"))))
 
 
 (defn thread-status
@@ -124,7 +125,10 @@
       (when-let [url-map (.poll (-> config :state :url-queue)
                                 3 TimeUnit/SECONDS)]
         (trace :got url-map)
-        (crawl-page config url-map))
+        (trace :robots robots/*host-robots*)
+        (if (robots/crawlable? (:url url-map))
+          (crawl-page config url-map)
+          (trace :not-crawling (:url url-map))))
       (let [tid (.getId (Thread/currentThread))]
         (trace :running? (get @(-> config :state :worker-canaries) tid))
         (let [state (:state config)
