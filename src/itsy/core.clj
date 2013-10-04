@@ -126,13 +126,13 @@
                                 3 TimeUnit/SECONDS)]
         (trace :got url-map)
         (cond
-         
+
          (not (-> config :polite?))
          (crawl-page config url-map)
 
          (robots/crawlable? (:url url-map))
          (crawl-page config url-map)
-         
+
          :else
          (trace :politely-not-crawling (:url url-map))))
       (let [tid (.getId (Thread/currentThread))]
@@ -225,10 +225,10 @@
   (trace :options options)
   (let [hl (:host-limit options)
         host-limiter (cond
-                       (string? hl) (try (:host (url hl))
-                                         (catch Exception _ hl))
-                       (= true hl) (:host (url (:url options)))
-                       :else hl)
+                      (string? hl) (try (:host (url hl))
+                                        (catch Exception _ hl))
+                      (= true hl) (:host (url (:url options)))
+                      :else hl)
         _ (trace :host-limiter host-limiter)
         config (merge {:workers 5
                        :url-limit 100
@@ -239,7 +239,7 @@
                                :worker-canaries (ref {})
                                :seen-urls (atom {})}
                        :http-opts default-http-opts
-                       :polite?   true}
+                       :polite? true}
                       options
                       {:host-limit host-limiter})]
     (trace :config config)

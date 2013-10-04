@@ -47,5 +47,3 @@
                   (merge http-opts
                          {:body (json/encode {:id id :url url :body body})}))
         nil))))
-
-
