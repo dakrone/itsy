@@ -5,6 +5,7 @@
             [clojure.tools.logging :refer [debug error info trace warn]]
             [clojure.set :as set]
             [clj-http.client :as http]
+            [itsy.queues :as queues]
             [itsy.robots :as robots]
             [slingshot.slingshot :refer [get-thrown-object try+]])
   (:import (java.net URL)
@@ -23,7 +24,6 @@
 (defn- enqueue*
   "Internal function to enqueue a url as a map with :url and :count."
   [config url]
-  (trace :enqueue-url url)
   (.put (-> config :state :url-queue)
         {:url url :count @(-> config :state :url-count)})
   (swap! (-> config :state :url-count) inc))
@@ -42,8 +42,8 @@
         (swap! (-> config :state :seen-urls) assoc url 1)
         (if-let [host-limiter (:host-limit config)]
           (when (.contains (:host url-info) host-limiter)
-            (enqueue* config url))
-          (enqueue* config url))))))
+            (queues/enqueue* config url))
+          (queues/enqueue* config url))))))
 
 
 (defn enqueue-urls
@@ -58,6 +58,7 @@
 (defn extract-all
   "Dumb URL extraction based on regular expressions. Extracts relative URLs."
   [original-url body]
+  (trace :extracting original-url)
   (when body
     (let [candidates1 (->> (re-seq #"href=\"([^\"]+)\"" body)
                            (map second)
@@ -77,6 +78,15 @@
           all (set (concat fq fq-ufq))]
       all)))
 
+(defn request-and-record-time
+  [config a-url]
+  (let [current-ts (System/currentTimeMillis)
+        the-host   (-> a-url url :host)]
+    (do
+      (swap! queues/*host-last-request* merge {the-host current-ts})
+      (swap! queues/*host-waiting-queue* merge {the-host false})
+      (http/get a-url (:http-opts config)))))
+
 (defn- crawl-page
   "Internal crawling function that fetches a page, enqueues url found on that
   page and calls the handler with the page body."
@@ -85,14 +95,15 @@
    (trace :retrieving-body-for url-map)
    (let [url (:url url-map)
          score (:count url-map)
-         body (:body (http/get url (:http-opts config)))
+         body (:body (request-and-record-time config url))
          _ (trace :extracting-urls)
          urls ((:url-extractor config) url body)]
      (enqueue-urls config urls)
      (try
        ((:handler config) (assoc url-map :body body))
+       (swap! (-> config :state :url-count) inc)
        (catch Exception e
-         (error e "Exception executing handler"))))
+         (error e (format "Exception executing handler %s" (:url url-map))))))
    (catch java.net.SocketTimeoutException e
      (trace "connection timed out to" (:url url-map)))
    (catch org.apache.http.conn.ConnectTimeoutException e
@@ -139,8 +150,7 @@
         (trace :running? (get @(-> config :state :worker-canaries) tid))
         (let [state (:state config)
               limit-reached (and (pos? (:url-limit config))
-                                 (= @(:url-count state) (:url-limit config))
-                                 (zero? (.size (:url-queue state))))]
+                                 (= @(:url-count state) (:url-limit config)))]
           (when-not (get @(:worker-canaries state) tid)
             (debug "my canary has died, terminating myself"))
           (when limit-reached
@@ -233,7 +243,7 @@
         config (merge {:workers 5
                        :url-limit 100
                        :url-extractor extract-all
-                       :state {:url-queue (LinkedBlockingQueue.)
+                       :state {:url-queue queues/*ready-queue*
                                :url-count (atom 0)
                                :running-workers (ref [])
                                :worker-canaries (ref {})
@@ -249,6 +259,7 @@
                                 :insecure? true}
       (dotimes [_ (:workers config)]
         (start-worker config))
+      (queues/start-url-queue-worker)
       (info "Starting crawl of" (:url config))
       (enqueue-url config (:url config)))
     config))
