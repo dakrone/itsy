@@ -31,9 +31,8 @@ We expect a timestamp to be milliseconds since epoch"
   (let [processed-url (url a-url)
         the-host      (-> processed-url :host)]
     (if-let [host-queue (@*host-urls-queue* the-host)]
-      (do (.put host-queue {:url   a-url
-                            :count (-> config :state :url-count)})
-          (swap! (-> config :state :url-count) inc))
+      (.put host-queue {:url   a-url
+                        :count (-> config :state :url-count)})
       (do
         (setup-new-host the-host)
         (recur config a-url)))))
