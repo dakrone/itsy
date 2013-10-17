@@ -162,11 +162,11 @@ Usage:
                        :number_of_replicas 0}}})
 
 ;; If the ES index doesn't exist, make-es-handler will create it when called.
-(defn es-handler [] (make-es-handler {:es-url "http://localhost:9200/"
-                                      :es-index "crawl"
-                                      :es-type "page"
-                                      :es-index-settings index-settings
-                                      :http-opts {}}))
+(def es-handler (make-es-handler {:es-url "http://localhost:9200/"
+                                  :es-index "crawl"
+                                  :es-type "page"
+                                  :es-index-settings index-settings
+                                  :http-opts {}}))
 
 (def c (crawl {:url "http://example.com" :handler es-handler}))
 
