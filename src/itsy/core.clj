@@ -139,7 +139,7 @@
         (trace :running? (get @(-> config :state :worker-canaries) tid))
         (let [state (:state config)
               limit-reached (and (pos? (:url-limit config))
-                                 (= @(:url-count state) (:url-limit config))
+                                 (>= @(:url-count state) (:url-limit config))
                                  (zero? (.size (:url-queue state))))]
           (when-not (get @(:worker-canaries state) tid)
             (debug "my canary has died, terminating myself"))
