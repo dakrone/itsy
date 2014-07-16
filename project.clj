@@ -13,6 +13,6 @@
                  ;[org.slf4j/slf4j-log4j12 "1.7.5"]
                  ;[org.slf4j/jcl-over-slf4j "1.7.5"]
                  ;[org.slf4j/jul-to-slf4j "1.7.5"]
-                 [org.apache.tika/tika-core "1.3"]
-                 [org.apache.tika/tika-parsers "1.3"]]
+                 [org.apache.tika/tika-core "1.5"]
+                 [org.apache.tika/tika-parsers "1.5"]]
   :resource-paths ["etc"])
