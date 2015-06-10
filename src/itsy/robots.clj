@@ -3,7 +3,7 @@
             [clj-http.client :as client]
             [clj-robots.core :as robots]))
 
-(def *host-robots* (atom {}))
+(def host-robots (atom {}))
 
 (defn fetch-robots
   [a-host]
@@ -18,11 +18,11 @@
 (defn fetch-and-save-robots
   [a-site]
   (let [directives (fetch-robots a-site)]
-    (swap! *host-robots* merge {(str
-                                 (-> a-site
-                                     url/url
-                                     :host))
-                                directives})))
+    (swap! host-robots merge {(str
+                               (-> a-site
+                                   url/url
+                                   :host))
+                              directives})))
 
 (defn crawlable?
   [link]
@@ -33,17 +33,17 @@
                      url/url
                      :path)]
     (cond
-     (and (@*host-robots* the-host)
-          (not (= (@*host-robots* the-host)
-                  :not-found)))
-     (robots/crawlable? (@*host-robots* the-host) the-path)
+      (and (@host-robots the-host)
+           (not (= (@host-robots the-host)
+                   :not-found)))
+      (robots/crawlable? (@host-robots the-host) the-path)
 
-     (and (@*host-robots* the-host)
-          (= (@*host-robots* the-host)
-             :not-found))
-     true
+      (and (@host-robots the-host)
+           (= (@host-robots the-host)
+              :not-found))
+      true
 
-     :else
-     (do
-       (fetch-and-save-robots link)
-       (recur link)))))
+      :else
+      (do
+        (fetch-and-save-robots link)
+        (recur link)))))
